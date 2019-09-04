@@ -81,6 +81,9 @@ type SigOptions struct {
 
 	// CopiedHeaderFileds
 	CopiedHeaderFields []string
+
+	// Overridden signing function
+	Signer func (*[]byte, *rsa.PrivateKey, string) (string, error)
 }
 
 // NewSigOptions returns new sigoption with some defaults value
@@ -177,7 +180,11 @@ func Sign(email *[]byte, options SigOptions) error {
 	headers = bytes.TrimRight(headers, " \r\n")
 
 	// sign
-	sig, err := getSignature(&headers, privateKey, signHash[1])
+	signer := options.Signer
+	if signer == nil {
+		signer := getSignature
+	}
+	sig, err := signer(&headers, privateKey, signHash[1])
 
 	// add to DKIM-Header
 	subh := ""
