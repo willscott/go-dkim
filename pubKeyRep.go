@@ -4,7 +4,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
-	"io/ioutil"
+	"io"
 	"mime/quotedprintable"
 	"net"
 	"strings"
@@ -124,7 +124,7 @@ func NewPubKeyResp(dkimRecord string) (*PubKeyRep, verifyOutput, error) {
 				return nil, PERMFAIL, ErrVerifyBadKeyType
 			}
 		case "n":
-			qp, err := ioutil.ReadAll(quotedprintable.NewReader(strings.NewReader(val)))
+			qp, err := io.ReadAll(quotedprintable.NewReader(strings.NewReader(val)))
 			if err == nil {
 				val = string(qp)
 			}
@@ -139,6 +139,9 @@ func NewPubKeyResp(dkimRecord string) (*PubKeyRep, verifyOutput, error) {
 				return nil, PERMFAIL, ErrVerifyBadKey
 			}
 			pk, err := x509.ParsePKIXPublicKey(un64)
+			if err != nil {
+				return nil, PERMFAIL, ErrVerifyBadKey
+			}
 			if pk, ok := pk.(*rsa.PublicKey); ok {
 				pkr.PubKey = *pk
 			}

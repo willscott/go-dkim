@@ -180,6 +180,7 @@ var signedDouble = "DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=simple/simpl
 	" pIghLwl/EshDBmNy65O6qO8pSSGgZmM3T7SRLMloex8bnrBJ4KSYcHV46639gVEWcBOKW0" + CRLF +
 	" h1djZu2jaTuxGeJzlFVtw3Arf2B93cc=" + CRLF + emailBase
 
+/*
 var fromGmail = "Return-Path: toorop@gmail.com" + CRLF +
 	"Delivered-To: toorop@tmail.io" + CRLF +
 	"Received: tmail deliverd local d9ae3ac7c238a50a6e007d207337752eb04038ff; 21 May 2015 19:47:54 +0200" + CRLF +
@@ -214,6 +215,7 @@ var fromGmail = "Return-Path: toorop@gmail.com" + CRLF +
 	"-- " + CRLF +
 	"Toorop" + CRLF +
 	"http://www.protecmail.com" + CRLF + CRLF + CRLF
+*/
 
 var missingHeaderMail = "Received: tmail deliverd remote 439903a23facd153908f3e17fb487962d01f4b44; 02 Jun 2015 10:00:24 +0000" + CRLF +
 	"X-Env-From: toorop@toorop.fr" + CRLF +
@@ -338,6 +340,7 @@ func Test_Sign(t *testing.T) {
 	options.Canonicalization = "simple/simple"
 	emailSimple := append([]byte(nil), email...)
 	err = Sign(&emailSimple, options)
+	assert.NoError(t, err)
 	assert.Equal(t, []byte(signedSimpleSimple), emailSimple)
 
 	options.Headers = []string{"from", "subject", "date", "message-id"}
@@ -349,6 +352,7 @@ func Test_Sign(t *testing.T) {
 	options.Canonicalization = "simple/simple"
 	emailSimple = append([]byte(nil), email...)
 	err = Sign(&emailSimple, options)
+	assert.NoError(t, err)
 	assert.Equal(t, []byte(signedSimpleSimpleLength), emailSimple)
 
 }
@@ -398,6 +402,12 @@ func Test_Verify(t *testing.T) {
 
 	// relaxed
 	email = []byte(signedRelaxedRelaxedLength)
+	status, err = Verify(&email, resolveTXT)
+	assert.NoError(t, err)
+	assert.Equal(t, SUCCESS, status)
+
+	// double
+	email = []byte(signedDouble)
 	status, err = Verify(&email, resolveTXT)
 	assert.NoError(t, err)
 	assert.Equal(t, SUCCESS, status)

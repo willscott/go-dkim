@@ -9,10 +9,10 @@ var (
 	ErrSignPrivateKeyRequired = errors.New("PrivateKey is required")
 
 	// ErrSignDomainRequired when there is no domain defined in config
-	ErrSignDomainRequired = errors.New("Domain is required")
+	ErrSignDomainRequired = errors.New("domain is required")
 
 	// ErrSignSelectorRequired when there is no Selcteir defined in config
-	ErrSignSelectorRequired = errors.New("Selector is required")
+	ErrSignSelectorRequired = errors.New("selector is required")
 
 	// ErrSignHeaderShouldContainsFrom If Headers is specified it should at least contain 'from'
 	ErrSignHeaderShouldContainsFrom = errors.New("header must contains 'from' field")

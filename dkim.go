@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"container/list"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -99,7 +100,7 @@ func NewSigOptions() SigOptions {
 
 // Sign signs an email
 func Sign(email *[]byte, options SigOptions) error {
-	var privateKey *rsa.PrivateKey
+	var sigFunc getSignatureFunc
 	var err error
 
 	// PrivateKey
@@ -116,10 +117,14 @@ func Sign(email *[]byte, options SigOptions) error {
 		if key, err := x509.ParsePKCS8PrivateKey(d.Bytes); err != nil {
 			return ErrCandNotParsePrivateKey
 		} else {
-			privateKey = key.(*rsa.PrivateKey)
+			if _, ok := key.(*rsa.PrivateKey); !ok {
+				sigFunc = edSigner(key.(ed25519.PrivateKey))
+			} else {
+				sigFunc = rsaSigner(key.(*rsa.PrivateKey))
+			}
 		}
 	} else {
-		privateKey = key
+		sigFunc = rsaSigner(key)
 	}
 
 	// Domain required
@@ -184,7 +189,10 @@ func Sign(email *[]byte, options SigOptions) error {
 	headers = bytes.TrimRight(headers, " \r\n")
 
 	// sign
-	sig, err := getSignature(&headers, privateKey, signHash[1])
+	sig, err := sigFunc(&headers, signHash[1])
+	if err != nil {
+		return err
+	}
 
 	// add to DKIM-Header
 	subh := ""
@@ -443,29 +451,48 @@ func getBodyHash(body *[]byte, algo string, bodyLength uint) (string, error) {
 }
 
 // getSignature return signature of toSign using key
-func getSignature(toSign *[]byte, key *rsa.PrivateKey, algo string) (string, error) {
-	var h1 hash.Hash
-	var h2 crypto.Hash
-	switch algo {
-	case "sha1":
-		h1 = sha1.New()
-		h2 = crypto.SHA1
-		break
-	case "sha256":
-		h1 = sha256.New()
-		h2 = crypto.SHA256
-		break
-	default:
-		return "", ErrVerifyInappropriateHashAlgo
-	}
+func rsaSigner(key *rsa.PrivateKey) getSignatureFunc {
+	return func(toSign *[]byte, algo string) (string, error) {
+		var h1 hash.Hash
+		var h2 crypto.Hash
+		switch algo {
+		case "sha1":
+			h1 = sha1.New()
+			h2 = crypto.SHA1
+		case "sha256":
+			h1 = sha256.New()
+			h2 = crypto.SHA256
+		default:
+			return "", ErrVerifyInappropriateHashAlgo
+		}
 
-	// sign
-	h1.Write(*toSign)
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, h2, h1.Sum(nil))
-	if err != nil {
-		return "", err
+		// sign
+		h1.Write(*toSign)
+		sig, err := rsa.SignPKCS1v15(rand.Reader, key, h2, h1.Sum(nil))
+		if err != nil {
+			return "", err
+		}
+		return base64.StdEncoding.EncodeToString(sig), nil
 	}
-	return base64.StdEncoding.EncodeToString(sig), nil
+}
+
+type getSignatureFunc func(toSign *[]byte, algo string) (string, error)
+
+func edSigner(key ed25519.PrivateKey) getSignatureFunc {
+	return func(toSign *[]byte, algo string) (string, error) {
+		var h1 hash.Hash
+		switch algo {
+		case "sha256":
+			h1 = sha256.New()
+		default:
+			return "", ErrVerifyInappropriateHashAlgo
+		}
+
+		// sign
+		h1.Write(*toSign)
+		sig := ed25519.Sign(key, h1.Sum(nil))
+		return base64.StdEncoding.EncodeToString(sig), nil
+	}
 }
 
 // verifySignature verify signature from pubkey
@@ -476,11 +503,9 @@ func verifySignature(toSign []byte, sig64 string, key *rsa.PublicKey, algo strin
 	case "sha1":
 		h1 = sha1.New()
 		h2 = crypto.SHA1
-		break
 	case "sha256":
 		h1 = sha256.New()
 		h2 = crypto.SHA256
-		break
 	default:
 		return ErrVerifyInappropriateHashAlgo
 	}
@@ -547,7 +572,7 @@ func getHeadersBody(email *[]byte) ([]byte, []byte, error) {
 	substitutedEmail := *email
 
 	// only replace \n with \r\n when \r\n\r\n not exists
-	if bytes.Index(*email, []byte{13, 10, 13, 10}) < 0 {
+	if !bytes.Contains(*email, []byte{13, 10, 13, 10}) {
 		// \n -> \r\n
 		substitutedEmail = bytes.Replace(*email, []byte{10}, []byte{13, 10}, -1)
 	}
