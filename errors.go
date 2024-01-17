@@ -24,7 +24,7 @@ var (
 	ErrCandNotParsePrivateKey = errors.New("can not parse private key, check format (pem) and validity")
 
 	// ErrSignBadAlgo Bad algorithm
-	ErrSignBadAlgo = errors.New("bad algorithm. Only rsa-sha1 or rsa-sha256 are permitted")
+	ErrSignBadAlgo = errors.New("bad algorithm. Only rsa-sha1, rsa-sha256, ed25519-sha256 are permitted")
 
 	// ErrBadMailFormat unable to parse mail
 	ErrBadMailFormat = errors.New("bad mail format")

@@ -145,7 +145,7 @@ func Sign(email *[]byte, options SigOptions) error {
 
 	// Algo
 	options.Algo = strings.ToLower(options.Algo)
-	if options.Algo != "rsa-sha1" && options.Algo != "rsa-sha256" {
+	if options.Algo != "rsa-sha1" && options.Algo != "rsa-sha256" && options.Algo != "ed25519-sha256" {
 		return ErrSignBadAlgo
 	}
 
